@@ -84,6 +84,40 @@ export default {
     upload(rawFile) {
       this.$refs.input.value = null;
 
+      function splice() {
+        var chunkSize = 2 * 1024 * 1024;
+        let fileSize = rawFile.size;
+        let quence = [];
+        //if(rawFile.size > chunkSize) {//文件大于阀值，进行切块
+        //切块发送
+        var chunks = Math.ceil(fileSize / chunkSize); //分割块数
+        for (var i = 0; i < chunks; i++) {
+          var startIdx = i * chunkSize; //块的起始位置
+          var endIdx = startIdx + chunkSize; //块的结束位置
+          if (endIdx > fileSize) {
+            endIdx = fileSize;
+          }
+          var lastChunk = false;
+          if (i == (chunks - 1)) {
+            lastChunk = true;
+          }
+          var file = {
+            status: 'ready',
+            name: rawFile.name,
+            size: rawFile.size,
+            type: rawFile.type,
+            percentage: 0,
+            uid: rawFile.uid,
+            startIdx: startIdx,
+            endIdx: endIdx,
+            chunked: true,
+            currChunk: i,
+            totalChunk: chunks,
+            file: rawFile.slice(startIdx, endIdx)
+          };
+          _this2.post(file);
+        }
+      }
       if (!this.beforeUpload) {
         return this.post(rawFile);
       }
@@ -106,13 +140,13 @@ export default {
             }
             this.post(processedFile);
           } else {
-            this.post(rawFile);
+            splice();
           }
         }, () => {
           this.onRemove(null, rawFile);
         });
       } else if (before !== false) {
-        this.post(rawFile);
+        splice();
       } else {
         this.onRemove(null, rawFile);
       }
@@ -132,28 +166,38 @@ export default {
         });
       }
     },
-    post(rawFile) {
-      const { uid } = rawFile;
-      const options = {
+    post: function post(rawFile) {
+
+      let data = this.data;
+      let file = rawFile;
+      if (!!rawFile.chunked) {
+        data = Object.assign({}, { currChunk: rawFile.currChunk, totalChunk: rawFile.totalChunk, filename: rawFile.name, type: rawFile.type }, this.data);
+        file = new Blob([rawFile.file], { type: rawFile.type });
+      }
+      var _this3 = this;
+      var uid = rawFile.uid;
+      var options = {
         headers: this.headers,
         withCredentials: this.withCredentials,
-        file: rawFile,
-        data: this.data,
+        file: file,
+        data: data,
         filename: this.name,
         action: this.action,
-        onProgress: e => {
-          this.onProgress(e, rawFile);
+        onProgress: function onProgress(e) {
+          _this3.onProgress(e, rawFile);
         },
-        onSuccess: res => {
-          this.onSuccess(res, rawFile);
-          delete this.reqs[uid];
+        onSuccess: function onSuccess(res) {
+          if (res.stateCode == 200) {
+            _this3.onSuccess(res, rawFile);
+            delete _this3.reqs[uid];
+          }
         },
-        onError: err => {
-          this.onError(err, rawFile);
-          delete this.reqs[uid];
+        onError: function onError(err) {
+          _this3.onError(err, rawFile);
+          delete _this3.reqs[uid];
         }
       };
-      const req = this.httpRequest(options);
+      var req = this.httpRequest(options);
       this.reqs[uid] = req;
       if (req && req.then) {
         req.then(options.onSuccess, options.onError);
@@ -196,15 +240,17 @@ export default {
       }
     };
     data.class[`el-upload--${listType}`] = true;
-    return (
-      <div {...data} tabindex="0" >
-        {
-          drag
-            ? <upload-dragger disabled={disabled} on-file={uploadFiles}>{this.$slots.default}</upload-dragger>
-            : this.$slots.default
-        }
-        <input class="el-upload__input" type="file" ref="input" name={name} on-change={handleChange} multiple={multiple} accept={accept}></input>
-      </div>
+    return ( <
+      div { ...data } tabindex = "0" > {
+        drag ?
+        < upload - dragger disabled = { disabled } on - file = { uploadFiles } > { this.$slots.default } < /upload-dragger> :
+          this.$slots.default
+      } <
+      input class = "el-upload__input"
+      type = "file"
+      ref = "input"
+      name = { name } on - change = { handleChange } multiple = { multiple } accept = { accept } > < /input> <
+      /div>
     );
   }
 };
