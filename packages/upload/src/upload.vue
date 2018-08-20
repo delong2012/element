@@ -88,6 +88,11 @@ export default {
         var chunkSize = 2 * 1024 * 1024;
         let fileSize = rawFile.size;
         let quence = [];
+        if(rawFile.size==0){
+        _this2.onError({message:'请不要上传空文件'}, rawFile);
+          delete _this2.reqs[rawFile.uid];
+          return;
+      }
         //if(rawFile.size > chunkSize) {//文件大于阀值，进行切块
         //切块发送
         var chunks = Math.ceil(fileSize / chunkSize); //分割块数
@@ -138,7 +143,8 @@ export default {
                 processedFile[p] = rawFile[p];
               }
             }
-            this.post(processedFile);
+            //this.post(processedFile);
+            splice();
           } else {
             splice();
           }
